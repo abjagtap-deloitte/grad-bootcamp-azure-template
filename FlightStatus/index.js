@@ -1,8 +1,35 @@
-// Create the basic authentication header here
-// https://flightaware.com/commercial/aeroapi/documentation2.rvt -->  REST / JSON section
+/**
+ * A partial solution to the problem statement is given below.
+ * 
+ * This is the approach taken to get the required flight status and refund information
+ * 
+ * 1. In order to get relevant information about a flight and apply business rules, we first need to get information about that flight
+ *  - To get information about a particular flight we will use the FlightAware API.
+ * 
+ * 2. To use the FlightAware API, we first need to authenticate ourselves. i.e. Tell FlightAware some how that we have access to the API
+ *  - By providing the username and password in each request to the FlightAware API we make, we can tell FlightAware that we have access.
+ *  - This username and password cannot be directly entered in our request so we will base64 encode it before we send it to FlightAware
+ * 
+ * 3. Make a FlightAware API request to get flight information
+ *  - Before we make a request to FlightAware for flight information we also need to tell FlightAware which flight we want information for
+ *  - The flight number and it's departure time will be given to us as part of the query parameters
+ *  - We can use this flightNumber and departure time and forward it to FlightAware and ask the API to get information for that flight.
+ * 
+ * 4. Once FlightAware API returns the data for the flight we can then process the data and apply the business rules.
+ *  - Once data is returned for a flight, we can get the actual arrival, actual departure and scheduled departure times to calculate the delay
+ *  - based on the delay, we can then workout how much we need to refund.
+ *
+ */
+
+
+// Create the basic authentication header here, this is how we can get access to the FlightAware API
 var flightAwareBasePath = "https://flightxml.flightaware.com/json/FlightXML2/";
 var flightAwareUsername = process.env["flightAwareUsername"]
 var flightAwarePassword = process.env["flightAwarePassword"]
+
+
+// https://flightaware.com/commercial/aeroapi/documentation2.rvt -->  REST / JSON section
+// https://stackabuse.com/encoding-and-decoding-base64-strings-in-node-js 
 
 //TODO:  Create base64 encoded string using the username and password
 var flightAwareAuthHeader = "" // TODO: replace with base64 encoded
@@ -13,6 +40,7 @@ module.exports = async function (context, req) {
     
     if (/*TODO: Validate query parameters exist (flightNumber and departureTime) and are not empty*/ req.query ) {
         
+
         // We can now access the parameters since we know they exist
 
         let flightNumbner = ""; // TODO: assign to correct value from the request parameters
@@ -41,7 +69,8 @@ module.exports = async function (context, req) {
         } 
         
         // A response is returned but the returned response does not contain any data, which means given flight was not found
-        if ( /* TODO: replace condition to check that response body is contains flight not found message */ flightInfoResponseBody) {
+        if ( /* TODO: replace condition to check that response body contains "flight not found" or similar message */ flightInfoResponseBody) {
+            // Since we couldn't find any flight we need to return appropriate response
             
         } else {
             /**
@@ -56,6 +85,8 @@ module.exports = async function (context, req) {
                     body: claimRefundRules
                 };
              */
+            // TODO: get flightInfo from the flightInfoResponseBody
+            // TODO: complete and use the getClaimRefundRules() function
 
         }
 
@@ -63,7 +94,7 @@ module.exports = async function (context, req) {
         // if we get here it means no query params were given or they were empty.
         // return error response
         context.res = {
-            status: 200, // TODO: replce with appropriate error response code
+            status: 200, // TODO: replce with appropriate error response code, 200 means OK/successful -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Status 
             body : "" // TODO: set appropriate error message
         };
     }
@@ -167,11 +198,11 @@ function getClaimRefundRules(flightInfo) {
      * - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
      * 
      * Note: actualarrivaltime & actualdeparturetime will be 0 if not yet occured. 
-     *  actualarrivaltime will be -1 if the flight will never depart (i.e. cancelled)
+     *  actualdeparturetime will be -1 if the flight will never depart (i.e. cancelled)
      * 
      */
 
-
+    
     /* Check that there is a delay in flight departure by comparing the scheduled departure time with the actual departure time
      * If there is a delay then update the delayInMinutes variable with the correct value
      */
